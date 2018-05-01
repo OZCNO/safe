@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script src="/javascripts/encode.js"></script>
+    <script src="/javascripts/domParse.js"></script>
+    <script>
+   
+	var parse=function(str){
+		//用results来存储parse的结果
+		var results="";
+		//parse过程容易出错，要俘获错误
+		try{
+			//domParse.js的方法
+			//unescape,解码，反转义，he是encode.js的对象，使用严格模式
+			//对解码后的内容进行domParse
+	        HTMLParser(he.unescape(str,{strict:true}),{
+	           //自带的几个属性方法
+	           //开头
+	           //标签，属性，是否是不配对标签
+	           start:function(tag,attrs,unary){
+
+                    //过滤这几个标签
+                    if(tag=='script'||tag=='style'||tag=='link'||tag=='iframe'||tag=='frame')return;
+                    //假如图片也不要，加上这句话
+                    if(tag=='img') return;
+
+                    results += '<'+tag;
+                    
+                    //所有属性都过滤，不添加，因为onerror或onclick这些都会造成xss
+                    // for(var i=0,len=attrs.length;i<len;i++){
+                    //     results += " "+attrs[i].name+'="'+attrs[i].escaped+'"';
+                    // }
+                    
+                    results += (unary?"/":"")+">";
+	           },
+	           end:function(tag){
+	           	  results+="</"+tag+">";
+	           },
+	           //内容
+	           chars:function(text){
+	           	  results+=text;
+	           },
+	           //提取注释
+	           comment:function(text){
+	              results+="<!--"+text+"-->";
+	           }
+	        });
+	        return results;
+		}catch(e){
+			console.log(e);
+		}finally{
+
+		}
+	}
+     
+    </script>
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <p>Welcome to <%= title %></p>
+
+    <textarea name="name" rows="8" id="txt">
+    	<p>sks<img src="null" alt="" onerror="alert(1)"></p>
+    </textarea>
+
+    <button type="button" name="button" id="btn">评论</button>
+    <button type="button" name="button" id="get">获取评论</button>
+
+    <script>
+    	var btn=document.getElementById("btn");
+    	var get=document.getElementById("get");
+    	var txt=document.getElementById("txt");
+
+    	//提交评论
+    	btn.addEventListener("click",function(){
+    		var xhr=new XMLHttpRequest();
+    		var url="/comment?comment="+txt.value;
+    		xhr.open("GET",url,true);
+    		xhr.onreadystatechange=function(){
+    			if(xhr.readyState==4){
+    				if(xhr.status==200){
+    					console.log("成功："+xhr);
+    				}
+    				else{
+    					console.log("error");
+    				}
+    			}
+    		}
+    		xhr.send();
+    	});
+
+    	//获取评论
+    	get.addEventListener('click',function(){
+    		var xhr=new XMLHttpRequest();
+    		var url="/getComment";
+    		xhr.open("GET",url,true);
+    		xhr.onreadystatechange=function(){
+    			if(xhr.readyState==4){
+    				if(xhr.status==200){
+                        var com=parse(JSON.parse(xhr.response).comment);
+    					var txt=document.createElement("span");
+                        //innerText不会识别解析标签,而innerHTML会，这里使用innerHTML模仿
+                        //txt.innerText=com;
+    					txt.innerHTML=com;
+    					document.body.appendChild(txt);
+    				}
+    				else{
+    					console.log("error");
+    				}
+    			}
+    		}
+    		xhr.send();
+
+    	});
+    </script>
+  </body>
+</html>
